@@ -721,6 +721,20 @@ struct packet *udp6Reply(struct packet *m0)
 }
 
 /*
+ * find mac in cache
+ */
+
+u_char *findCache(pcs *pc, char* addr) {
+    int i;
+    for (i = 0; i < POOL_SIZE; i++) {
+        if (sameNet6((char *) pc->ipmac6[i].ip.addr8,
+                     addr, 128))
+            return (pc->ipmac6[i].mac);
+    }
+    return NULL;
+}
+
+/*
  * find neighbor
  *
  * return the mac
@@ -730,6 +744,8 @@ struct packet *udp6Reply(struct packet *m0)
 u_char *nbDiscovery(pcs *pc, ip6 *dst)
 {
 	int i;
+    u_char *found_mac;
+    char *dest_ip6;
 	static u_char mac[ETH_ALEN] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};	
 	int waittime = 1000;
 	struct timeval tv;
@@ -767,19 +783,18 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 		}
 		return NULL;
 	} else {
-		/* search neightbor cache */
-		for (i = 0; i < POOL_SIZE; i++) {
-			if (sameNet6((char *)pc->ipmac6[i].ip.addr8, 
-			    (char *)dst->addr8, 128))
-				return (pc->ipmac6[i].mac);
-		}
+		/* search neighbor cache */
+		dest_ip6 = (char *) dst->addr8;
+        found_mac = findCache(pc, dest_ip6);
+        if (found_mac != NULL)
+            return found_mac;
 	}
 	
 	/* find neighbor */
 	i = 0;
 	while ( i++ < 3 ){
 		struct packet *m;
-		
+
 		m = nb_sol(pc, dst);	
 		
 		if (m == NULL) {
@@ -791,11 +806,9 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 		gettimeofday(&(tv), (void*)0);
 		while (!timeout(tv, waittime)) {
 			delay_ms(1);
-			for (i = 0; i < POOL_SIZE; i++) {
-				if (sameNet6((char *)pc->ipmac6[i].ip.addr8, 
-				    (char *)dst->addr8, 128))
-					return (pc->ipmac6[i].mac);
-			}
+            found_mac = findCache(pc, dest_ip6);
+            if (found_mac != NULL)
+                return found_mac;
 		}
 	}
 	return NULL;
