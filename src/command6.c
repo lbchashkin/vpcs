@@ -322,6 +322,7 @@ int run_ipset6(int argc, char **argv)
 	pcs *pc = &vpc[pcid];
 	struct in6_addr ipaddr;
 	int hasMask = 0;
+    int hasGW = 0;
 	struct packet *m;
 	int eui64 = 0;
 	
@@ -332,22 +333,40 @@ int run_ipset6(int argc, char **argv)
 		case 4:
 			if (!strcasecmp(argv[3], "eui-64") || !strcasecmp(argv[3], "eui64"))
 				eui64 = 1;
+            else {
+                if (vinet_pton6(AF_INET6, argv[3], &ipaddr) == 1) {
+                    vinet_ntop6(AF_INET6, &ipaddr, buf, INET6_ADDRSTRLEN + 1);
+                    memcpy(pc->ip6.gw.addr8, ipaddr.s6_addr, 16);
+                    hasGW = 1;
+                } else {
+                    pc->ip6.cidr = atoi(argv[3]);
+                    if (pc->ip6.cidr == 0)
+                        pc->ip6.cidr = 64;
+                    hasMask = 1;
+                }
+            }
 		case 3:
 			if (!strcasecmp(argv[2], "eui-64") || !strcasecmp(argv[2], "eui64"))
 				eui64 = 1;
 			else {
-				pc->ip6.cidr = atoi(argv[2]);
-				if (pc->ip6.cidr == 0)
-					pc->ip6.cidr = 64;
-				hasMask = 1;
-			}
+                if (vinet_pton6(AF_INET6, argv[2], &ipaddr) == 1) {
+                    vinet_ntop6(AF_INET6, &ipaddr, buf, INET6_ADDRSTRLEN + 1);
+                    memcpy(pc->ip6.gw.addr8, ipaddr.s6_addr, 16);
+                    hasGW = 1;
+                } else {
+                    pc->ip6.cidr = atoi(argv[2]);
+                    if (pc->ip6.cidr == 0)
+                        pc->ip6.cidr = 64;
+                    hasMask = 1;
+                }
+            }
 		case 2:
 			if (!hasMask)
 				pc->ip6.cidr = 64;
 			if (vinet_pton6(AF_INET6, argv[1], &ipaddr) == 1) {
 				vinet_ntop6(AF_INET6, &ipaddr, buf, INET6_ADDRSTRLEN + 1);
 				memcpy(pc->ip6.ip.addr8, ipaddr.s6_addr, 16);
-				
+
 				if (eui64) {
 					pc->ip6.ip.addr8[15] = pc->ip4.mac[5];
 					pc->ip6.ip.addr8[14] = pc->ip4.mac[4];
@@ -356,26 +375,36 @@ int run_ipset6(int argc, char **argv)
 					pc->ip6.ip.addr8[11] = 0xff;
 					pc->ip6.ip.addr8[10] = pc->ip4.mac[2];
 					pc->ip6.ip.addr8[9]  = pc->ip4.mac[1];
-					pc->ip6.ip.addr8[8]  = (pc->ip4.mac[0] &0x20) ? 
+					pc->ip6.ip.addr8[8]  = (pc->ip4.mac[0] &0x20) ?
 						pc->ip4.mac[0] & 0xef : (pc->ip4.mac[0] | 0x20);
 					pc->ip6.type = IP6TYPE_EUI64;
 				} else
 					pc->ip6.type = IP6TYPE_NONE;
-					
+
 				memset(buf, 0, INET6_ADDRSTRLEN + 1);
 				memcpy(ipaddr.s6_addr, pc->ip6.ip.addr8, 16);
 				vinet_ntop6(AF_INET6, &ipaddr, buf,INET6_ADDRSTRLEN + 1);
-		
+
 				printf("PC%d : %s/%d %s\n", pcid + 1, buf, pc->ip6.cidr,
 				    (pc->ip6.type == IP6TYPE_EUI64) ? "eui-64" : "");
-				m = nbr_sol(pc);
-				
-				if (m == NULL) {
-					printf("out of memory\n");
-					return 1;
-				}
-				enq(&pc->oq, m);
-				
+				if (!hasGW) {
+                    vinet_pton6(AF_INET6, "0::0", &ipaddr);
+                    vinet_ntop6(AF_INET6, &ipaddr, buf, INET6_ADDRSTRLEN + 1);
+                    memcpy(pc->ip6.gw.addr8, ipaddr.s6_addr, 16);
+                    m = nbr_sol(pc);
+
+                    if (m == NULL) {
+                        printf("out of memory\n");
+                        return 1;
+                    }
+                    enq(&pc->oq, m);
+                }
+                else {
+                    memset(buf, 0, INET6_ADDRSTRLEN + 1);
+                    memcpy(ipaddr.s6_addr, pc->ip6.gw.addr8, 16);
+                    vinet_ntop6(AF_INET6, &ipaddr, buf,INET6_ADDRSTRLEN + 1);
+                    printf("GATEWAY : %s\n", buf);
+                }
 			} else {
 				printf("Invalid ipv6 address.\n");
 			}
