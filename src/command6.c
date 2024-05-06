@@ -367,6 +367,17 @@ int run_ipset6(int argc, char **argv)
 				vinet_ntop6(AF_INET6, &ipaddr, buf, INET6_ADDRSTRLEN + 1);
 				memcpy(pc->ip6.ip.addr8, ipaddr.s6_addr, 16);
 
+
+                if (!sameNet6((char*)pc->ip6.ip.addr8, (char*)pc->ip6.gw.addr8, pc->ip6.cidr)) {
+                    printf("Warning: gateway should be in the same net, gateway will be ignored\n");
+                    hasGW = 0;
+                }
+
+                if (IP6EQ(&pc->ip6.ip, &pc->ip6.gw)) {
+                    printf("Warning: gateway should not be equal to IP, gateway will be ignored\n");
+                    hasGW = 0;
+                }
+
 				if (eui64) {
 					pc->ip6.ip.addr8[15] = pc->ip4.mac[5];
 					pc->ip6.ip.addr8[14] = pc->ip4.mac[4];
