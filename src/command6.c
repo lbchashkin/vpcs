@@ -734,6 +734,16 @@ int show_ipv6(int argc, char **argv)
 			printf(" %s", buf6);
 		}
 		printf("\n");
+        printf("GATEWAY           : ");
+
+        if (vpc[id].ip6.gw.addr32[0] != 0 || vpc[id].ip6.gw.addr32[1] != 0 ||
+            vpc[id].ip6.gw.addr32[2] != 0 || vpc[id].ip6.gw.addr32[3] != 0) {
+            memset(buf6, 0, INET6_ADDRSTRLEN + 1);
+            memcpy(ipaddr.s6_addr, vpc[id].ip6.gw.addr8, 16);
+            vinet_ntop6(AF_INET6, &ipaddr, buf6, INET6_ADDRSTRLEN + 1);
+            printf("%s", buf6);
+        }
+        printf("\n");
 		printf("ROUTER LINK-LAYER : ");
 		if (!etherIsZero(vpc[id].ip6.gmac)) 
 			PRINT_MAC(vpc[id].ip6.gmac);
