@@ -53,7 +53,7 @@
 #include "dhcp.h"
 #include "frag6.h"
 
-const char *ver = "0.8.3";
+const char *ver = "0.8.4 (by Leonid Chashkin)";
 /* track the binary */
 static const char *ident = "$Id$";
 
