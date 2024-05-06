@@ -724,11 +724,11 @@ struct packet *udp6Reply(struct packet *m0)
  * find mac in cache
  */
 
-u_char *findCache(pcs *pc, char* addr) {
+u_char *findCache(pcs *pc, ip6 *dst) {
     int i;
     for (i = 0; i < POOL_SIZE; i++) {
         if (sameNet6((char *) pc->ipmac6[i].ip.addr8,
-                     addr, 128))
+                     (char *) dst->addr8, 128))
             return (pc->ipmac6[i].mac);
     }
     return NULL;
@@ -744,8 +744,8 @@ u_char *findCache(pcs *pc, char* addr) {
 u_char *nbDiscovery(pcs *pc, ip6 *dst)
 {
 	int i;
+    int hasGW = 0;
     u_char *found_mac;
-    char *dest_ip6;
 	static u_char mac[ETH_ALEN] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};	
 	int waittime = 1000;
 	struct timeval tv;
@@ -761,10 +761,15 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 		
 		return mac;	
 	}
-	
+
+    if (pc->ip6.gw.addr32[0] != 0 || pc->ip6.gw.addr32[1] != 0 ||
+        pc->ip6.gw.addr32[2] != 0 || pc->ip6.gw.addr32[3] != 0) {
+        hasGW = 1;
+    }
+
 	/* find router */
 	if (!sameNet6((char *)pc->ip6.ip.addr8, (char *)dst->addr8, pc->ip6.cidr) &&
-		dst->addr16[0] != IPV6_ADDR_INT16_ULL) {
+		dst->addr16[0] != IPV6_ADDR_INT16_ULL && (!hasGW)) {
 		
 		gettimeofday(&(tv), (void*)0);
 		while (!timeout(tv, waittime)) {
@@ -784,8 +789,9 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 		return NULL;
 	} else {
 		/* search neighbor cache */
-		dest_ip6 = (char *) dst->addr8;
-        found_mac = findCache(pc, dest_ip6);
+        if (hasGW)
+            dst = &pc->ip6.gw;
+        found_mac = findCache(pc, dst);
         if (found_mac != NULL)
             return found_mac;
 	}
@@ -795,7 +801,7 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 	while ( i++ < 3 ){
 		struct packet *m;
 
-		m = nb_sol(pc, dst);	
+		m = nb_sol(pc, dst);
 		
 		if (m == NULL) {
 			printf("out of memory\n");
@@ -806,7 +812,7 @@ u_char *nbDiscovery(pcs *pc, ip6 *dst)
 		gettimeofday(&(tv), (void*)0);
 		while (!timeout(tv, waittime)) {
 			delay_ms(1);
-            found_mac = findCache(pc, dest_ip6);
+            found_mac = findCache(pc, dst);
             if (found_mac != NULL)
                 return found_mac;
 		}
