@@ -393,7 +393,7 @@ run_vpcs(int ac, char **av)
 	pv = &vpcs_list[i];
 	memset(pv, 0, sizeof(struct list));
 	
-	/* reinitialized, maybe call getopt twice */
+	/* reinitialized, maybe call get_opt twice */
 	optind = 1;
 #if ((!defined(GNUkFreeBSD) && (defined(FreeBSD) || defined(OpenBSD))) || defined(Darwin))
 	optreset = 1;
